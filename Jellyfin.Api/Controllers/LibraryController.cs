@@ -776,13 +776,11 @@ public class LibraryController : BaseJellyfinApiController
         {
             Genres = item.Genres,
             Tags = item.Tags,
-            Limit = limit,
             IncludeItemTypes = includeItemTypes.ToArray(),
             DtoOptions = dtoOptions,
             EnableTotalRecordCount = !isMovie ?? true,
             EnableGroupByMetadataKey = isMovie ?? false,
-            ExcludeItemIds = [itemId],
-            OrderBy = [(ItemSortBy.Random, SortOrder.Ascending)]
+            ExcludeItemIds = [itemId]
         };
 
         // ExcludeArtistIds
@@ -791,7 +789,11 @@ public class LibraryController : BaseJellyfinApiController
             query.ExcludeArtistIds = excludeArtistIds;
         }
 
-        var itemsResult = _libraryManager.GetItemList(query);
+        var allSimilarItems = _libraryManager.GetItemList(query);
+
+        var scoredItems = RankBySimilarity(allSimilarItems, item.Genres, item.Tags);
+
+        var itemsResult = (limit.HasValue ? scoredItems.Take(limit.Value) : scoredItems).ToList();
 
         var returnList = _dtoService.GetBaseItemDtos(itemsResult, dtoOptions, user);
 
@@ -947,6 +949,28 @@ public class LibraryController : BaseJellyfinApiController
         {
             // Logged at lower levels
         }
+    }
+
+    /// <summary>
+    /// Ranks the given items by similarity to the provided genres and tags,
+    /// placing the most similar items first.
+    /// </summary>
+    /// <param name="candidates">Candidate items to rank.</param>
+    /// <param name="sourceGenres">Genres of the source item.</param>
+    /// <param name="sourceTags">Tags of the source item.</param>
+    /// <returns>Items ordered from most to least similar.</returns>
+    internal static IEnumerable<BaseItem> RankBySimilarity(IEnumerable<BaseItem> candidates, string[] sourceGenres, string[] sourceTags)
+    {
+        var genreSet = new HashSet<string>(sourceGenres, StringComparer.OrdinalIgnoreCase);
+        var tagSet = new HashSet<string>(sourceTags, StringComparer.OrdinalIgnoreCase);
+
+        return candidates
+            .Select(i => (
+                Item: i,
+                Score: i.Genres.Count(g => genreSet.Contains(g))
+                     + i.Tags.Count(t => tagSet.Contains(t))))
+            .OrderByDescending(x => x.Score)
+            .Select(x => x.Item);
     }
 
     private static string[] GetRepresentativeItemTypes(CollectionType? contentType)
