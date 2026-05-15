@@ -791,7 +791,7 @@ public class LibraryController : BaseJellyfinApiController
 
         var allSimilarItems = _libraryManager.GetItemList(query);
 
-        var scoredItems = RankBySimilarity(allSimilarItems, item.Genres, item.Tags);
+        var scoredItems = RankBySimilarity(allSimilarItems, item.Genres ?? [], item.Tags ?? []);
 
         var itemsResult = (limit.HasValue ? scoredItems.Take(limit.Value) : scoredItems).ToList();
 

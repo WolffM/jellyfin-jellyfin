@@ -31,7 +31,7 @@ namespace Jellyfin.Api.Tests.Controllers
         [Fact]
         public void RankBySimilarity_EmptySourceGenresAndTags_AllScoresAreZero()
         {
-            // When source has no genres or tags every candidate scores zero and order is stable
+            // When source has no genres or tags every candidate scores zero; all items are returned
             var item1 = new Movie { Genres = ["Action"], Tags = ["thriller"] };
             var item2 = new Movie { Genres = ["Drama"], Tags = [] };
 
@@ -39,8 +39,10 @@ namespace Jellyfin.Api.Tests.Controllers
 
             var ranked = LibraryController.RankBySimilarity(candidates, [], []).ToList();
 
-            // All scores are 0 so the relative order should be preserved (stable sort)
             Assert.Equal(2, ranked.Count);
+            // All scores are 0 so both items must be present (order is implementation-defined)
+            Assert.Contains(item1, ranked);
+            Assert.Contains(item2, ranked);
         }
 
         [Fact]
